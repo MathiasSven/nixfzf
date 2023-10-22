@@ -24,21 +24,23 @@ command -v jq >/dev/null 2>&1 || command -v bat >/dev/null 2>&1 || {
 	exit
 }
 
+[[ -z "${XDG_CACHE_HOME}" ]] && XDG_CACHE_HOME=~/.cache
+
 [[ $1 == "-u" ]] && {
 	shift
-	[[ $1 == "-n" || ! -e ~/.cache/nixfzf ]] && {
+	[[ $1 == "-n" || ! -e $XDG_CACHE_HOME/nixfzf ]] && {
 		echo "Caching nixpkgs..."
-		nix-env -qa --json | jq --raw-output 'keys | .[]' | cut -d. -f 2- | sort | uniq >~/.cache/nixfzf
+		nix-env -qa --json | jq --raw-output 'keys | .[]' | cut -d. -f 2- | sort | uniq >$XDG_CACHE_HOME/nixfzf
 	}
-	[[ $1 == "-o" || ! -e ~/.cache/nixfzf-options ]] && {
+	[[ $1 == "-o" || ! -e $XDG_CACHE_HOME/nixfzf-options ]] && {
 		echo "Caching nixos options..."
 		options="$(NIXPKGS_ALLOW_UNFREE=1 nix-build -Q --no-out-link '<nixpkgs/nixos/release.nix>' -A options)/share/doc/nixos/options.json"
-		cp "$options" ~/.cache/nixfzf-options
+		cp "$options" $XDG_CACHE_HOME/nixfzf-options
 	}
-	[[ $1 == "-m" || ! -e ~/.cache/nixfzf-options ]] && {
+	[[ $1 == "-m" || ! -e $XDG_CACHE_HOME/nixfzf-options ]] && {
 		echo "Caching home-manager options..."
 		options_url="https://raw.githubusercontent.com/mipmip/home-manager-option-search/main/data/options.json"
-		curl -s "$options_url" | jq '.options' | sed 's/&lt;/</g;s/&gt;/>/g' > ~/.cache/hm-options
+		curl -s "$options_url" | jq '.options' | sed 's/&lt;/</g;s/&gt;/>/g' > $XDG_CACHE_HOME/hm-options
 	}
 	exit
 }
@@ -50,13 +52,13 @@ command -v jq >/dev/null 2>&1 || command -v bat >/dev/null 2>&1 || {
 		echo >&2 "You need yq or gojq for options preview"
 		exit
 	}
-	jq '.[].title' -r ~/.cache/hm-options >/tmp/hm-options
+	jq '.[].title' -r $XDG_CACHE_HOME/hm-options >/tmp/hm-options
 	printArg() {
 		command -v yq >/dev/null 2>&1 && {
-			view=$(cat $HOME/.cache/hm-options | yq -P ".[] | select(.title==\"$1\")" | bat --language=yaml --style=numbers --color=always)
+			view=$(cat $XDG_CACHE_HOME/hm-options | yq -P ".[] | select(.title==\"$1\")" | bat --language=yaml --style=numbers --color=always)
 		}
 		command -v gojq >/dev/null 2>&1 && {
-			view=$(cat $HOME/.cache/hm-options | gojq ".[] | select(.title==\"$1\")" --yaml-output | bat --language=yaml --style=numbers --color=always)
+			view=$(cat $XDG_CACHE_HOME/hm-options | gojq ".[] | select(.title==\"$1\")" --yaml-output | bat --language=yaml --style=numbers --color=always)
 		}
 		echo "$view"
 	}
@@ -80,13 +82,13 @@ command -v jq >/dev/null 2>&1 || command -v bat >/dev/null 2>&1 || {
 		echo >&2 "You need yq or gojq for options preview"
 		exit
 	}
-	jq 'keys | .[]' -r ~/.cache/nixfzf-options | tail -n +2 >/tmp/options
+	jq 'keys | .[]' -r $XDG_CACHE_HOME/nixfzf-options | tail -n +2 >/tmp/options
 	printArg() {
 		command -v yq >/dev/null 2>&1 && {
-			view=$(cat $HOME/.cache/nixfzf-options | yq -P ".\"$1\"" | bat --language=yaml --style=numbers --color=always)
+			view=$(cat $XDG_CACHE_HOME/nixfzf-options | yq -P ".\"$1\"" | bat --language=yaml --style=numbers --color=always)
 		}
 		command -v gojq >/dev/null 2>&1 && {
-			view=$(cat $HOME/.cache/nixfzf-options | gojq ".\"$1\"" --yaml-output | bat --language=yaml --style=numbers --color=always)
+			view=$(cat $XDG_CACHE_HOME/nixfzf-options | gojq ".\"$1\"" --yaml-output | bat --language=yaml --style=numbers --color=always)
 		}
 		echo "$view"
 	}
@@ -104,7 +106,7 @@ command -v jq >/dev/null 2>&1 || command -v bat >/dev/null 2>&1 || {
 	exit
 } || {
 	[[ $1 == "-n" ]] && shift
-	cat ~/.cache/nixfzf | awk '{print $0" \033[32m*\033[0m"}' >/tmp/packages
+	cat $XDG_CACHE_HOME/nixfzf | awk '{print $0" \033[32m*\033[0m"}' >/tmp/packages
 	# wanna use flake instead ?
 	# nix search nixpkgs --json | jq --raw-output 'keys | .[]' | cut -d. -f 3- | awk '{print $0" \033[32m*\033[0m"}' >/tmp/packages
 	echo "$(
