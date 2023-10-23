@@ -40,7 +40,8 @@ command -v jq >/dev/null 2>&1 || command -v bat >/dev/null 2>&1 || {
 	[[ $1 == "-m" || ! -e $XDG_CACHE_HOME/nixfzf-options ]] && {
 		echo "Caching home-manager options..."
 		options_url="https://raw.githubusercontent.com/mipmip/home-manager-option-search/main/data/options.json"
-		curl -s "$options_url" | jq '.options' | sed 's/&lt;/</g;s/&gt;/>/g' > $XDG_CACHE_HOME/hm-options
+		curl -s "$options_url" | jq '.options' | sed 's/&lt;/</g;s/&gt;/>/g' | \
+		sed 's/<a href=\\\"\([^>]*\)\\\">\([^<]*\)<\/a><br\/>/[\2](\1)\\n/g' > $XDG_CACHE_HOME/hm-options
 	}
 	exit
 }
@@ -75,8 +76,9 @@ command -v jq >/dev/null 2>&1 || command -v bat >/dev/null 2>&1 || {
 	printArg() {
 		view=$(cat $XDG_CACHE_HOME/hm-options \
 			| processor ".[] | select(.title==\"$1\")" \
+			| sed 's/\[\([^]]*\)\](\(.*\))/\1\: \\e[4m\2\\e[0m/g' \
 			| bat --language=yaml --style=numbers --color=always)
-		echo "$view"
+		echo -e "$view"
 	}
 	# as exporting funtion doesn't work in zsh and fzf use $SHELL by defualt
 	SHELL=bash
