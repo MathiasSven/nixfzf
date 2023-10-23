@@ -45,25 +45,42 @@ command -v jq >/dev/null 2>&1 || command -v bat >/dev/null 2>&1 || {
 	exit
 }
 
+# choose cli processor for options preview
+[[ $1 == "-m"  ]] || [[ $1 == "-o" ]] && {
+	if command yq --prettyPrint >/dev/null 2>&1; then
+	        # using yq-go
+		processor() { yq -P "$1"; }
+	elif command -v gojq >/dev/null 2>&1; then
+		# using gojq
+		processor() { gojq "$1" --yaml-output; }
+	elif command -v yq >/dev/null 2>&1; then
+		# processor() { yq "$1" --yaml-output; }
+		#
+		# yq (python) is too slow for nixos options and it also
+		# doesn't play nicely with formatting
+		echo >&2 "You are using yq (kislyuk) which is too slow"
+		echo >&2 "and doesn't play nicely with formatting."
+		echo >&2 ""
+		echo >&2 "Please use either yq (mikefarah) or gojq"
+	else
+		echo >&2 "You need yq, or gojq for options preview"
+		exit
+	fi
+}
+
 # show home-manager options
 [[ $1 == "-m" ]] && {
 	shift
-	command -v yq >/dev/null 2>&1 || command -v gojq >/dev/null 2>&1 || {
-		echo >&2 "You need yq or gojq for options preview"
-		exit
-	}
 	jq '.[].title' -r $XDG_CACHE_HOME/hm-options >/tmp/hm-options
 	printArg() {
-		command -v yq >/dev/null 2>&1 && {
-			view=$(cat $XDG_CACHE_HOME/hm-options | yq -P ".[] | select(.title==\"$1\")" | bat --language=yaml --style=numbers --color=always)
-		}
-		command -v gojq >/dev/null 2>&1 && {
-			view=$(cat $XDG_CACHE_HOME/hm-options | gojq ".[] | select(.title==\"$1\")" --yaml-output | bat --language=yaml --style=numbers --color=always)
-		}
+		view=$(cat $XDG_CACHE_HOME/hm-options \
+			| processor ".[] | select(.title==\"$1\")" \
+			| bat --language=yaml --style=numbers --color=always)
 		echo "$view"
 	}
 	# as exporting funtion doesn't work in zsh and fzf use $SHELL by defualt
 	SHELL=bash
+	export -f processor
 	export -f printArg
 	cat /tmp/hm-options | fzf -q "$1" -e -m \
 		--preview="printArg {1}" \
@@ -78,21 +95,15 @@ command -v jq >/dev/null 2>&1 || command -v bat >/dev/null 2>&1 || {
 # show options
 [[ $1 == "-o" ]] && {
 	shift
-	command -v yq >/dev/null 2>&1 || command -v gojq >/dev/null 2>&1 || {
-		echo >&2 "You need yq or gojq for options preview"
-		exit
-	}
 	jq 'keys | .[]' -r $XDG_CACHE_HOME/nixfzf-options | tail -n +2 >/tmp/options
 	printArg() {
-		command -v yq >/dev/null 2>&1 && {
-			view=$(cat $XDG_CACHE_HOME/nixfzf-options | yq -P ".\"$1\"" | bat --language=yaml --style=numbers --color=always)
-		}
-		command -v gojq >/dev/null 2>&1 && {
-			view=$(cat $XDG_CACHE_HOME/nixfzf-options | gojq ".\"$1\"" --yaml-output | bat --language=yaml --style=numbers --color=always)
-		}
+		view=$(cat $XDG_CACHE_HOME/nixfzf-options \
+			| processor ".\"$1\"" \
+			| bat --language=yaml --style=numbers --color=always)
 		echo "$view"
 	}
 	SHELL=/usr/bin/bash
+	export -f processor
 	export -f printArg
 	cat /tmp/options | fzf -q "$1" -e -m \
 		--preview "printArg {1}" \

@@ -26,5 +26,5 @@ chmod +x nixfzf
 
 ![AdguardHome](./shots/1.png?raw=true)
 ![Vscode extensions](./shots/2.png?raw=true)
-Options preview requires `yq` or `gojq`
+Options preview requires [`yq`](https://github.com/mikefarah/yq) or [`gojq`](https://github.com/itchyny/gojq)
 ![AdguardHome Options](./shots/3.png?raw=true)
