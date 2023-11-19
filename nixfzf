@@ -119,23 +119,35 @@ command -v jq >/dev/null 2>&1 || command -v bat >/dev/null 2>&1 || {
 	exit
 } || {
 	[[ $1 == "-n" ]] && shift
+	
+	fzfHelper() {
+		fzf -q "$1" -e -m \
+			--preview="$preview" \
+			--preview-window=65%:wrap \
+			--layout=reverse \
+			--marker='>>' \
+			--header-lines=2 \
+			--info=hidden \
+			--ansi \
+			--margin="2%,1%,2%,1%" \
+			--cycle | sed -e 's/[[:space:]]\*$//'
+	}
+
 	cat $XDG_CACHE_HOME/nixfzf | awk '{print $0" \033[32m*\033[0m"}' >/tmp/packages
 	# wanna use flake instead ?
 	# nix search nixpkgs --json | jq --raw-output 'keys | .[]' | cut -d. -f 3- | awk '{print $0" \033[32m*\033[0m"}' >/tmp/packages
+	
+	preview='bat --style=numbers --color=always --line-range :500 $(nix eval --raw nixpkgs#{1}.meta.position | cut -d: -f1)'
 	echo "$(
 		echo -e ' Select packages to print out\n (use TAB to toggle selection)'
 		cat /tmp/packages
 	)" >/tmp/packages
-	cat /tmp/packages | fzf -q "$1" -e -m \
-		--preview='bat --style=numbers --color=always --line-range :500 $(nix eval --raw nixpkgs#{1}.meta.position | cut -d: -f1)' \
-		--preview-window=65%:wrap \
-		--layout=reverse \
-		--marker='>>' \
-		--header-lines=2 \
-		--info=hidden \
-		--ansi \
-		--margin="2%,1%,2%,1%" \
-		--cycle | sed -e 's/[[:space:]]\*$//' | xargs -roIX nix search nixpkgs#X
+
+	if [[ $1 == "--raw" ]]; then
+		cat /tmp/packages | fzfHelper
+	else
+		cat /tmp/packages | fzfHelper | xargs -roIX nix search nixpkgs#X
+	fi
 }
 
 # if you want to open it in your editor of choice
