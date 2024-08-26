@@ -30,7 +30,7 @@ command -v jq >/dev/null 2>&1 || command -v bat >/dev/null 2>&1 || {
 	shift
 	[[ $1 == "-n" || ! -e $XDG_CACHE_HOME/nixfzf ]] && {
 		echo "Caching nixpkgs..."
-		nix-env -qa --json | jq --raw-output 'keys | .[]' | cut -d. -f 2- | sort | uniq >$XDG_CACHE_HOME/nixfzf
+		nix-env -qa -f '<nixpkgs>' --json | jq --raw-output 'keys | .[]' | sort | uniq >"$XDG_CACHE_HOME/nixfzf"
 	}
 	[[ $1 == "-o" || ! -e $XDG_CACHE_HOME/nixfzf-options ]] && {
 		echo "Caching nixos options..."
