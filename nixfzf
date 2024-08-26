@@ -1,4 +1,4 @@
-# /usr/bin/env sh
+#!/usr/bin/env bash
 
 set -o errexit
 set -o pipefail
@@ -35,13 +35,13 @@ command -v jq >/dev/null 2>&1 || command -v bat >/dev/null 2>&1 || {
 	[[ $1 == "-o" || ! -e $XDG_CACHE_HOME/nixfzf-options ]] && {
 		echo "Caching nixos options..."
 		options="$(NIXPKGS_ALLOW_UNFREE=1 nix-build -Q --no-out-link '<nixpkgs/nixos/release.nix>' -A options)/share/doc/nixos/options.json"
-		cp "$options" $XDG_CACHE_HOME/nixfzf-options
+		cp "$options" "$XDG_CACHE_HOME/nixfzf-options"
 	}
 	[[ $1 == "-m" || ! -e $XDG_CACHE_HOME/nixfzf-options ]] && {
 		echo "Caching home-manager options..."
 		options_url="https://raw.githubusercontent.com/mipmip/home-manager-option-search/main/data/options.json"
 		curl -s "$options_url" | jq '.options' | sed 's/&lt;/</g;s/&gt;/>/g' | \
-		sed 's/<a href=\\\"\([^>]*\)\\\">\([^<]*\)<\/a><br\/>/[\2](\1)\\n/g' > $XDG_CACHE_HOME/hm-options
+		sed 's/<a href=\\\"\([^>]*\)\\\">\([^<]*\)<\/a><br\/>/[\2](\1)\\n/g' > "$XDG_CACHE_HOME/hm-options"
 	}
 	exit
 }
@@ -72,10 +72,11 @@ command -v jq >/dev/null 2>&1 || command -v bat >/dev/null 2>&1 || {
 # show home-manager options
 [[ $1 == "-m" ]] && {
 	shift
-	jq '.[].title' -r $XDG_CACHE_HOME/hm-options >/tmp/hm-options
+	jq '.[].title' -r "$XDG_CACHE_HOME/hm-options" >/tmp/hm-options
+    # shellcheck disable=SC2317
 	printArg() {
-		view=$(cat $XDG_CACHE_HOME/hm-options \
-			| processor ".[] | select(.title==\"$1\")" \
+		view=$(< "$XDG_CACHE_HOME/hm-options" \
+			  processor ".[] | select(.title==\"$1\")" \
 			| sed 's/\[\([^]]*\)\](\(.*\))/\1\: \\e[4m\2\\e[0m/g' \
 			| bat --language=yaml --style=numbers --color=always)
 		echo -e "$view"
@@ -84,7 +85,7 @@ command -v jq >/dev/null 2>&1 || command -v bat >/dev/null 2>&1 || {
 	SHELL=bash
 	export -f processor
 	export -f printArg
-	cat /tmp/hm-options | fzf -q "$1" -e -m \
+	< /tmp/hm-options fzf -q "$1" -e -m \
 		--preview="printArg {1}" \
 		--preview-window=up,wrap,wrap,border-horizontal \
 		--layout=reverse \
@@ -95,19 +96,21 @@ command -v jq >/dev/null 2>&1 || command -v bat >/dev/null 2>&1 || {
 	exit
 }
 # show options
+# shellcheck disable=SC2015
 [[ $1 == "-o" ]] && {
 	shift
-	jq 'keys | .[]' -r $XDG_CACHE_HOME/nixfzf-options | tail -n +2 >/tmp/options
+	jq 'keys | .[]' -r "$XDG_CACHE_HOME/nixfzf-options" | tail -n +2 >/tmp/options
+    # shellcheck disable=SC2317
 	printArg() {
-		view=$(cat $XDG_CACHE_HOME/nixfzf-options \
-			| processor ".\"$1\"" \
+		view=$(< "$XDG_CACHE_HOME/nixfzf-options" \
+			  processor ".\"$1\"" \
 			| bat --language=yaml --style=numbers --color=always)
 		echo "$view"
 	}
 	# SHELL=/usr/bin/bash
 	export -f processor
 	export -f printArg
-	cat /tmp/options | fzf -q "$1" -e -m \
+	< /tmp/options fzf -q "$1" -e -m \
 		--preview "printArg {1}" \
 		--preview-window=up,wrap,wrap,border-horizontal \
 		--layout=reverse \
@@ -133,10 +136,11 @@ command -v jq >/dev/null 2>&1 || command -v bat >/dev/null 2>&1 || {
 			--cycle | sed -e 's/[[:space:]]\*$//'
 	}
 
-	cat $XDG_CACHE_HOME/nixfzf | awk '{print $0" \033[32m*\033[0m"}' >/tmp/packages
+	< "$XDG_CACHE_HOME/nixfzf" awk '{print $0" \033[32m*\033[0m"}' >/tmp/packages
 	# wanna use flake instead ?
 	# nix search nixpkgs --json | jq --raw-output 'keys | .[]' | cut -d. -f 3- | awk '{print $0" \033[32m*\033[0m"}' >/tmp/packages
 	
+    # shellcheck disable=SC2016
 	preview='bat --style=numbers --color=always --line-range :500 $(nix eval --raw nixpkgs#{1}.meta.position | cut -d: -f1)'
 	echo "$(
 		echo -e ' Select packages to print out\n (use TAB to toggle selection)'
@@ -144,9 +148,9 @@ command -v jq >/dev/null 2>&1 || command -v bat >/dev/null 2>&1 || {
 	)" >/tmp/packages
 
 	if [[ $1 == "--raw" ]]; then
-		cat /tmp/packages | fzfHelper
+		< /tmp/packages fzfHelper "$1"
 	else
-		cat /tmp/packages | fzfHelper | xargs -roIX nix search nixpkgs#X
+		< /tmp/packages fzfHelper "$1" | xargs -roIX nix search nixpkgs#X
 	fi
 }
 
